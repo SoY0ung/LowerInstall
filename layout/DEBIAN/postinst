@@ -1,18 +1,8 @@
-#!/bin/bash
-declare -a cydia
-cydia=($CYDIA)
+#!/bin/sh
 
-# Kill tweaked daemons so launchd respawns them under Substrate.
-#  - installd      : always present, lazy-launched on install.
-#  - itunesstored  : iOS 9 only (absent on iOS 10+).
-#  - appstored     : iOS 10+ only (absent on iOS 9).
-# SIGTERM so daemons can flush state; launchd respawns on any exit.
-killall installd     2>/dev/null || true
-killall itunesstored 2>/dev/null || true
-killall appstored    2>/dev/null || true
+# Restart hooked daemons.
+killall -TERM installd 2>/dev/null || true
+killall -TERM itunesstored 2>/dev/null || true
+killall -TERM appstored 2>/dev/null || true
 
-# Tell the package manager no respring is required.
-if [[ ${CYDIA+@} ]]; then
-    eval "echo 'finish:return' >&${cydia[0]}"
-fi
 exit 0
