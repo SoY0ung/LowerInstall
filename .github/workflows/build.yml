@@ -1,4 +1,5 @@
-name: Build .deb
+
+name: Build Rootless arm64e .deb
 
 on:
   push:
@@ -7,18 +8,62 @@ on:
 
 jobs:
   build:
-    runs-on: ubuntu-latest
+    runs-on: macos-15
+
+    env:
+      THEOS: ${{ runner.temp }}/theos
+
     steps:
-      - uses: actions/checkout@v6
+      - name: Checkout repository
+        uses: actions/checkout@v6
 
-      - name: Build container image
-        run: docker build -t lowerinstall-build -f Containerfile .
+      - name: Install build dependencies
+        run: |
+          brew install ldid xz
 
-      - name: Build .deb package
-        run: docker run --rm -v "$PWD:/build:Z" lowerinstall-build
+      - name: Install Theos
+        run: |
+          git clone --recursive --depth 1 \
+            https://github.com/theos/theos.git "$THEOS"
 
-      - name: Upload .deb artifact
+      - name: Install iOS 16.5 SDK
+        run: |
+          "$THEOS/bin/install-sdk" iPhoneOS16.5
+
+      - name: Show build environment
+        run: |
+          xcodebuild -version
+          xcrun clang --version
+          ls "$THEOS/sdks"
+
+      - name: Build Rootless package
+        run: |
+          chmod +x layout/DEBIAN/postinst
+          chmod +x layout/etc/rc.d/lowerinstall
+
+          make clean
+          make -j2 package FINALPACKAGE=1
+
+      - name: Verify architectures
+        run: |
+          find . -name "LowerInstall.dylib" -type f -print
+
+          DYLIB=$(find . -name "LowerInstall.dylib" \
+            -type f | head -n 1)
+
+          if [ -z "$DYLIB" ]; then
+            echo "LowerInstall.dylib not found"
+            exit 1
+          fi
+
+          xcrun lipo -info "$DYLIB"
+
+          test -n "$(find packages -name '*iphoneos-arm64.deb' -print -quit)"
+          ls -lh packages/*.deb
+
+      - name: Upload Rootless .deb
         uses: actions/upload-artifact@v7
         with:
-          name: deb-package
+          name: LowerInstall-Rootless-arm64e
           path: packages/*.deb
+          if-no-files-found: error
