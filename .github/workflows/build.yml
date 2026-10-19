@@ -27,8 +27,20 @@ jobs:
             https://github.com/theos/theos.git "$THEOS"
 
       - name: Install iOS 16.5 SDK
+        shell: bash
         run: |
-          "$THEOS/bin/install-sdk" iPhoneOS16.5
+          set -euo pipefail
+
+          mkdir -p "$THEOS/sdks"
+
+          curl -fL --retry 3 --retry-delay 3 \
+            -o /tmp/iPhoneOS16.5.sdk.tar.xz \
+            "https://github.com/theos/sdks/releases/download/master-146e41f/iPhoneOS16.5.sdk.tar.xz"
+
+          tar -xJf /tmp/iPhoneOS16.5.sdk.tar.xz \
+            -C "$THEOS/sdks"
+
+          ls -la "$THEOS/sdks"
 
       - name: Show build environment
         run: |
